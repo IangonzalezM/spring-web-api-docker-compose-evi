@@ -1,0 +1,39 @@
+services:
+
+  mysql:
+    image: mysql:8
+    container_name: mysql-evitest
+
+    env_file:
+      - .env
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: evitest-api
+    container_name: evitest-app
+
+    env_file:
+      - .env
+
+    ports:
+      - "4455:4455"
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    restart: unless-stopped
+volumes:
+  mysql_data:
+

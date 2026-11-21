@@ -51,79 +51,69 @@ A Spring Boot RESTful API for managing student records with full CRUD operations
 ---
 
 ## 📦 Prerequisites
-Before you begin, ensure you have the following installed:
+**Before you begin, ensure you have the following installed:**
+**Docker Desktop:**
+- docker --version
+- docker compose version
 
-Docker Desktop:
-docker --version
-docker compose version
+**Git:**
+- git --version
 
-Git:
-git --version
-No local installation of Java, Maven, MySQL or MySQL Workbench is required to run the application.
+**Maven**
+- mvn --version
+- mvn clean package -DskipTests
 
 ---
 
 ## 🚀 Installation
-Step 1: Clone the Repository
-git clone https://github.com/Lash47/springboot-rest-api.git
-
-cd springboot-rest-api/sbapp11
-Step 2: Create Environment File
-Copy:
-
-.env.example
-to:
-
-.env
-and customize the database credentials if required.
-
-Example:
-
-DB_URL=jdbc:mysql://mysql:3306/EVITest
-
-DB_USER=root
-
-DB_PASSWORD=root
-
-MYSQL_DATABASE=EVITest
-
-MYSQL_ROOT_PASSWORD=root
-Step 3: Build the Application
-mvn clean package -DskipTests
-Step 4: Build Docker Image
-docker build -t evitest-api .
-Step 5: Start the Environment
-docker compose up -d
-Step 6: Verify Containers
-docker ps
-Expected containers:
-
-mysql-evitest
-evitest-app
-Step 7: Access the API
+### Step 1: Clone the Repository
+- git clone https://github.com/IangonzalezM/spring-web-api-docker-compose-evi.git
+- cd spring-web-api-docker-compose-evi/sbapp11
+### Step 2: Create Environment File
+**Copy:**
+- .env.example 
+- to:
+- .env 
+- and customize the database credentials if required.
+**Example:**
+- DB_URL=jdbc:mysql://mysql:3306/EVITest
+- DB_USER=root
+- DB_PASSWORD=root
+- MYSQL_DATABASE=EVITest
+- MYSQL_ROOT_PASSWORD=root
+### Step 3: Build the Application
+- mvn clean package -DskipTests
+### Step 4: Build Docker Image
+- docker build -t evitest-api .
+### Step 5: Start the Environment
+- docker compose up -d
+### Step 6: Verify Containers
+- docker ps
+**Expected containers:**
+- mysql-evitest
+- evitest-app
+### Step 7: Access the API
 http://localhost:4455/api/v1/getStudent12
 
 ---
-🐳 Docker Environment
-The project uses Docker Compose to orchestrate:
+### 🐳 Docker Environment
+**The project uses Docker Compose to orchestrate:**
 
-Spring Boot REST API
-MySQL 8 Database
-Persistent Docker Volume
-Start
-docker compose up -d
-View Logs
-docker compose logs -f
-Stop Containers
-docker compose down
-Remove Containers and Database Volume
-docker compose down -v
-Rebuild Everything
-mvn clean package -DskipTests
-
-docker build --no-cache -t evitest-api .
-
-docker compose up -d
+- Spring Boot REST API
+- MySQL 8 Database
+- Persistent Docker Volume
+- Start
+- docker compose up -d
+- View Logs
+- docker compose logs -f
+- Stop Containers
+- docker compose down
+- Remove Containers and Database Volume
+- docker compose down -v
+- Rebuild Everything
+- mvn clean package -DskipTests
+- docker build --no-cache -t evitest-api .
+- docker compose up -d
 
 ---
 
@@ -133,18 +123,17 @@ docker compose up -d
 File: `src/main/resources/application.properties`
 
 ```properties
-# Server Configuration
-server.port=4455
+**Server Configuration**
+- server.port=4455
 
-# Database Connection
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-spring.datasource.url=jdbc:mysql://localhost:3306/Batch61
-spring.datasource.username=root
-spring.datasource.password=root
+**Database Connection**
+- spring.datasource.url=${DB_URL}
+- spring.datasource.username=${DB_USER}
+- spring.datasource.password=${DB_PASSWORD}
 
-# JPA/Hibernate Configuration
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
+**JPA/Hibernate Configuration**
+- spring.jpa.hibernate.ddl-auto=update
+- spring.jpa.show-sql=true
 ```
 
 **Options for `ddl-auto`:**
@@ -582,7 +571,7 @@ pm.environment.set("timestamp", new Date().getTime());
 ## 📁 Project Structure
 
 ```
-springboot-rest-api/
+spring-web-api-docker-compose-evi/
 │
 └── sbapp11/
     ├── src/
@@ -637,25 +626,38 @@ INSERT INTO Student1 (regdno, name, contact) VALUES
 Error: Connection refused
 ```
 **Solution:**
-- Verify server is running: `mvn spring-boot:run`
+- Verify server is running: `docker compose up -d`
 - Check port 4455 is accessible
 - In Postman, confirm base URL: `http://localhost:4455/api/v1`
 
 ### Issue 2: MySQL Connection Error
-```
-com.mysql.cj.jdbc.exceptions.CommunicationsException
-```
-**Solution:**
-- Start MySQL: `mysql.server start` (Mac) or `net start MySQL` (Windows)
-- Verify credentials in `application.properties`
-- Check if database exists: `SHOW DATABASES;`
+- com.mysql.cj.jdbc.exceptions.CommunicationsException
+**Possible Solutions**
+- 1. Verify that Docker containers are running:
+- docker ps
+**Expected containers:**
+- mysql-evitest
+- evitest-app
 
-### Issue 3: Postman Shows "Could not get any response"
-**Solution:**
-- Check if application is running
-- Verify URL format in Postman
-- Check firewall settings
-- Try with cURL: `curl http://localhost:4455/api/v1/getStudent12`
+- 2. Verify Docker Compose status:
+- docker compose ps
+
+- 3. Review application logs:
+- docker compose logs -f
+
+- 4. Verify environment variables in .env:
+- DB_URL=jdbc:mysql://mysql:3306/EVITest
+- DB_USER=root
+- DB_PASSWORD=your_password
+
+- 5. Restart the environment:
+- docker compose down
+- docker compose up -d
+
+- 6. If the database volume became corrupted:
+- docker compose down -v
+- docker compose up -d
+⚠️ This removes all persisted database data.
 
 ### Issue 4: Student Not Found (404)
 **Solution:**
@@ -695,27 +697,44 @@ com.mysql.cj.jdbc.exceptions.CommunicationsException
 ---
 
 ## 🔒 Security Notes
+- ⚠️ Important for Production
 
-⚠️ **Important for Production:**
+- Change Default Credentials
+- Do not use the default credentials provided in .env.example.
 
-1. **Change default credentials:**
-   - Update MySQL username and password in `application.properties`
-   - Don't use root account in production
+- Update the following values in your .env file:
 
-2. **Use environment variables:**
-   ```bash
-   export DB_USERNAME=your_username
-   export DB_PASSWORD=your_password
-   ```
+- DB_PASSWORD=your_secure_password
+- MYSQL_ROOT_PASSWORD=your_secure_password
+- Avoid using the MySQL root user outside development environments.
 
-3. **Enable validation:**
-   ```properties
-   spring.jpa.hibernate.ddl-auto=validate
-   ```
+### Environment Variables
+- All database configuration is externalized through environment variables.
 
-4. **Add Spring Security** (Optional)
-   - Implement authentication/authorization
-   - Use JWT tokens for API access
+- Example:
+
+- DB_URL=jdbc:mysql://mysql:3306/EVITest
+- DB_USER=root
+- DB_PASSWORD=your_secure_password
+
+- MYSQL_DATABASE=EVITest
+- MYSQL_ROOT_PASSWORD=your_secure_password
+### Hibernate Configuration
+- For production environments, consider changing:
+
+- spring.jpa.hibernate.ddl-auto=update
+- to:
+
+- spring.jpa.hibernate.ddl-auto=validate
+- to prevent automatic schema modifications.
+
+### Add Spring Security (Optional)
+- For production-grade deployments:
+
+- Implement authentication and authorization
+- Use JWT Bearer Tokens
+- Restrict API access based on user roles
+- Enable HTTPS behind a reverse proxy
 
 ---
 
@@ -750,7 +769,7 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## 👤 Author
 
-**Developed by:** [Lash47](https://github.com/Lash47)
+**Developed by:** [IanGonzalezM](https://github.com/IangonzalezM)
 
 ---
 
@@ -781,10 +800,9 @@ A: Yes! Use Newman (Postman CLI) or Collection Runner feature in Postman
 For issues or questions, please:
 1. Check the [Troubleshooting](#troubleshooting) section
 2. Open an issue on GitHub
-3. Contact the author at luckyashish47@gmail.com
 
 ---
 
-**Last Updated:** April 2026  
+**Last Updated:** November 2026  
 **Version:** 0.0.1-SNAPSHOT  
 **Status:** ✅ Tested with Postman

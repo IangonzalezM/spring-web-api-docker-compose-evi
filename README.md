@@ -638,6 +638,8 @@ spring-web-api-docker-compose-evi/
     └── HELP.md                                      (Spring Boot help)
 ```
 
+Static HTML UI (`index.html`) is served from `src/main/resources/static/` at `http://localhost:4455/`.
+
 ---
 
 ## 🗄️ Database Schema

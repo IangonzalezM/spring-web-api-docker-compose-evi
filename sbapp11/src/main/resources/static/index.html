@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SBAPP11 — Gestión de Alumnos (EVITest)</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-deep: #0B3C49;
+      --bg-mid: #006666;
+      --accent: #008b9b;
+      --accent-soft: #4EC1B8;
+      --slate: #3B556E;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f4f7f9;
+      color: #1e293b;
+    }
+    .hero-bar {
+      background: linear-gradient(135deg, var(--bg-deep) 0%, var(--bg-mid) 55%, var(--accent) 100%);
+      color: #fff;
+      padding: 1.5rem 0;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 14px rgba(11, 60, 73, 0.18);
+    }
+    .hero-bar small {
+      color: #d6f5f2;
+    }
+    .card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+    }
+    .card-header {
+      background-color: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      font-weight: 600;
+      color: var(--slate);
+      border-radius: 12px 12px 0 0 !important;
+    }
+    .btn-teal {
+      background-color: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .btn-teal:hover {
+      background-color: var(--bg-mid);
+      border-color: var(--bg-mid);
+      color: #fff;
+    }
+    .table thead th {
+      background-color: #eef4f6;
+      color: var(--bg-deep);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+  </style>
+</head>
+<body>
+  <header class="hero-bar">
+    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <h1 class="h4 mb-1 fw-bold">SBAPP11 · Gestión de Alumnos</h1>
+        <small>Spring Boot + MySQL 8 (<code>EVITest</code>) · API en <code>http://localhost:4455/api/v1</code></small>
+      </div>
+      <button id="btnRefresh" class="btn btn-light btn-sm fw-semibold" onclick="cargarAlumnos()">
+        ↻ Actualizar listado
+      </button>
+    </div>
+  </header>
+
+  <main class="container pb-5">
+    <div id="alertBox" class="alert d-none" role="alert"></div>
+
+    <div class="row g-4">
+      <!-- Formulario Alta / Edición -->
+      <div class="col-lg-4">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span id="formTitle">Nuevo alumno</span>
+            <span id="editingBadge" class="badge bg-info text-dark d-none">Editando</span>
+          </div>
+          <div class="card-body">
+            <form id="studentForm" onsubmit="guardarAlumno(event)">
+              <input type="hidden" id="sid" />
+
+              <div class="mb-3">
+                <label for="name" class="form-label">Nombre completo</label>
+                <input type="text" id="name" class="form-control" placeholder="Ej: Lucía Gómez" required />
+              </div>
+
+              <div class="mb-3">
+                <label for="regdno" class="form-label">Legajo / Regd. No.</label>
+                <input type="number" id="regdno" class="form-control" placeholder="Ej: 102" required />
+              </div>
+
+              <div class="mb-3">
+                <label for="contact" class="form-label">Contacto / Teléfono</label>
+                <input type="number" id="contact" class="form-control" placeholder="Ej: 1155667788" required />
+              </div>
+
+              <div class="d-grid gap-2">
+                <button type="submit" id="btnSubmit" class="btn btn-teal fw-semibold">
+                  Guardar alumno
+                </button>
+                <button type="button" id="btnCancel" class="btn btn-outline-secondary d-none" onclick="resetFormulario()">
+                  Cancelar edición
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Listado y Búsqueda -->
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>Listado de alumnos</span>
+            <div class="input-group input-group-sm" style="max-width: 280px;">
+              <input type="text" id="searchInput" class="form-control" placeholder="Buscar por nombre o ID..." oninput="filtrarLocal()" />
+              <button class="btn btn-outline-secondary" type="button" onclick="limpiarBusqueda()">✕</button>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>SID</th>
+                    <th>Nombre</th>
+                    <th>Legajo (regdno)</th>
+                    <th>Contacto</th>
+                    <th class="text-end">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="studentsBody">
+                  <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">Cargando alumnos...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = "http://localhost:4455/api/v1";
+    let alumnosCache = [];
+
+    function mostrarAlerta(mensaje, tipo = "success") {
+      const box = document.getElementById("alertBox");
+      box.className = `alert alert-${tipo} alert-dismissible fade show`;
+      box.innerHTML = `${mensaje}<button type="button" class="btn-close" onclick="ocultarAlerta()"></button>`;
+    }
+
+    function ocultarAlerta() {
+      const box = document.getElementById("alertBox");
+      box.className = "alert d-none";
+      box.innerHTML = "";
+    }
+
+    async function cargarAlumnos() {
+      try {
+        const res = await fetch(`${API_BASE}/getStudent12`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        alumnosCache = await res.json();
+        filtrarLocal();
+      } catch (err) {
+        document.getElementById("studentsBody").innerHTML = `
+          <tr><td colspan="5" class="text-center py-4 text-danger">
+            No se pudo consultar la API (${err.message}). Verificá que <code>evitest-app</code> esté corriendo en el puerto 4455.
+          </td></tr>`;
+      }
+    }
+
+    function filtrarLocal() {
+      const q = document.getElementById("searchInput").value.trim().toLowerCase();
+      const filtrados = !q
+        ? alumnosCache
+        : alumnosCache.filter(s =>
+            String(s.sid ?? "").toLowerCase().includes(q) ||
+            String(s.name ?? "").toLowerCase().includes(q) ||
+            String(s.regdno ?? "").toLowerCase().includes(q)
+          );
+      renderTabla(filtrados);
+    }
+
+    function limpiarBusqueda() {
+      document.getElementById("searchInput").value = "";
+      filtrarLocal();
+    }
+
+    function renderTabla(lista) {
+      const tbody = document.getElementById("studentsBody");
+      if (!Array.isArray(lista) || lista.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No hay alumnos para mostrar.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = lista.map(s => `
+        <tr>
+          <td><strong>#${s.sid ?? ""}</strong></td>
+          <td>${escapeHtml(s.name ?? "")}</td>
+          <td>${s.regdno ?? ""}</td>
+          <td>${s.contact ?? ""}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary me-1" onclick="prepararEdicion(${s.sid})">Editar</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="eliminarAlumno(${s.sid})">Eliminar</button>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function prepararEdicion(sid) {
+      const alumno = alumnosCache.find(s => Number(s.sid) === Number(sid));
+      if (!alumno) return;
+
+      document.getElementById("sid").value = alumno.sid;
+      document.getElementById("name").value = alumno.name ?? "";
+      document.getElementById("regdno").value = alumno.regdno ?? "";
+      document.getElementById("contact").value = alumno.contact ?? "";
+
+      document.getElementById("formTitle").textContent = `Editar alumno #${alumno.sid}`;
+      document.getElementById("editingBadge").classList.remove("d-none");
+      document.getElementById("btnSubmit").textContent = "Actualizar alumno";
+      document.getElementById("btnCancel").classList.remove("d-none");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function resetFormulario() {
+      document.getElementById("studentForm").reset();
+      document.getElementById("sid").value = "";
+      document.getElementById("formTitle").textContent = "Nuevo alumno";
+      document.getElementById("editingBadge").classList.add("d-none");
+      document.getElementById("btnSubmit").textContent = "Guardar alumno";
+      document.getElementById("btnCancel").classList.add("d-none");
+    }
+
+    async function guardarAlumno(event) {
+      event.preventDefault();
+      const sid = document.getElementById("sid").value.trim();
+      const payload = {
+        name: document.getElementById("name").value.trim(),
+        regdno: Number(document.getElementById("regdno").value),
+        contact: Number(document.getElementById("contact").value)
+      };
+
+      try {
+        let res;
+        if (sid) {
+          res = await fetch(`${API_BASE}/patchStudent/${sid}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          res = await fetch(`${API_BASE}/insertStudent12`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+        }
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        mostrarAlerta(sid ? `Alumno #${sid} actualizado correctamente.` : "Alumno creado correctamente.", "success");
+        resetFormulario();
+        await cargarAlumnos();
+      } catch (err) {
+        mostrarAlerta(`Error al guardar: ${err.message}`, "danger");
+      }
+    }
+
+    async function eliminarAlumno(sid) {
+      if (!confirm(`¿Seguro que querés eliminar al alumno #${sid}?`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/deleteStudent12/${sid}`, { method: "DELETE" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        mostrarAlerta(`Alumno #${sid} eliminado.`, "warning");
+        await cargarAlumnos();
+      } catch (err) {
+        mostrarAlerta(`Error al eliminar: ${err.message}`, "danger");
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    document.addEventListener("DOMContentLoaded", cargarAlumnos);
+  </script>
+</body>
+</html>

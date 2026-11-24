@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SBAPP11 — Gestión de Alumnos (EVITest)</title>
+  <title>TP EVI · Gestión de Alumnos</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
@@ -58,18 +58,42 @@
       text-transform: uppercase;
       letter-spacing: 0.03em;
     }
+    .json-console {
+      background-color: #0f172a;
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.82rem;
+      border-radius: 8px;
+      padding: 1rem;
+      max-height: 280px;
+      overflow-y: auto;
+      margin-bottom: 0;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
   </style>
 </head>
 <body>
   <header class="hero-bar">
     <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
       <div>
-        <h1 class="h4 mb-1 fw-bold">SBAPP11 · Gestión de Alumnos</h1>
+        <h1 class="h4 mb-1 fw-bold">TP EVI · Gestión de Alumnos</h1>
         <small>Spring Boot + MySQL 8 (<code>EVITest</code>) · API en <code>http://localhost:4455/api/v1</code></small>
       </div>
-      <button id="btnRefresh" class="btn btn-light btn-sm fw-semibold" onclick="cargarAlumnos()">
-        ↻ Actualizar listado
-      </button>
+      <div class="d-flex align-items-center gap-2">
+        <span id="apiStatusBadge" class="badge bg-light text-dark py-2 px-3">
+          <span id="apiStatusDot" class="status-dot bg-secondary"></span>
+          <span id="apiStatusText">Verificando API...</span>
+        </span>
+        <button id="btnRefresh" class="btn btn-light btn-sm fw-semibold" onclick="cargarAlumnos()">
+          ↻ Actualizar listado
+        </button>
+      </div>
     </div>
   </header>
 
@@ -77,7 +101,6 @@
     <div id="alertBox" class="alert d-none" role="alert"></div>
 
     <div class="row g-4">
-      <!-- Formulario Alta / Edición -->
       <div class="col-lg-4">
         <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center">
@@ -116,14 +139,19 @@
         </div>
       </div>
 
-      <!-- Listado y Búsqueda -->
       <div class="col-lg-8">
-        <div class="card">
+        <div class="card mb-4">
           <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <span>Listado de alumnos</span>
-            <div class="input-group input-group-sm" style="max-width: 280px;">
-              <input type="text" id="searchInput" class="form-control" placeholder="Buscar por nombre o ID..." oninput="filtrarLocal()" />
-              <button class="btn btn-outline-secondary" type="button" onclick="limpiarBusqueda()">✕</button>
+            <div class="d-flex align-items-center gap-2">
+              <span>Listado de alumnos</span>
+              <span id="totalBadge" class="badge rounded-pill text-bg-secondary">0</span>
+            </div>
+            <div class="d-flex gap-2">
+              <div class="input-group input-group-sm" style="max-width: 240px;">
+                <input type="text" id="searchInput" class="form-control" placeholder="Buscar por nombre o ID..." oninput="filtrarLocal()" />
+                <button class="btn btn-outline-secondary" type="button" onclick="limpiarBusqueda()">✕</button>
+              </div>
+              <button class="btn btn-outline-secondary btn-sm" type="button" onclick="exportarCsv()">CSV</button>
             </div>
           </div>
           <div class="card-body p-0">
@@ -147,6 +175,22 @@
             </div>
           </div>
         </div>
+
+        <div class="card">
+          <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <span>Respuesta API (JSON)</span>
+              <span id="lastEndpointBadge" class="badge text-bg-dark font-monospace">Sin peticiones</span>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="copiarJson()">Copiar JSON</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btnToggleJson" onclick="toggleJson()">Ocultar</button>
+            </div>
+          </div>
+          <div class="card-body" id="jsonPanelBody">
+            <pre id="jsonOutput" class="json-console">{}</pre>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -154,6 +198,25 @@
   <script>
     const API_BASE = "http://localhost:4455/api/v1";
     let alumnosCache = [];
+    let ultimoJson = "{}";
+
+    function setEstadoApi(conectada) {
+      const dot = document.getElementById("apiStatusDot");
+      const text = document.getElementById("apiStatusText");
+      if (conectada) {
+        dot.className = "status-dot bg-success";
+        text.textContent = "API Online";
+      } else {
+        dot.className = "status-dot bg-danger";
+        text.textContent = "Sin conexión";
+      }
+    }
+
+    function actualizarJson(metodo, ruta, estado, data) {
+      document.getElementById("lastEndpointBadge").textContent = `${metodo} ${ruta} -> ${estado}`;
+      ultimoJson = JSON.stringify(data, null, 2);
+      document.getElementById("jsonOutput").textContent = ultimoJson;
+    }
 
     function mostrarAlerta(mensaje, tipo = "success") {
       const box = document.getElementById("alertBox");
@@ -168,12 +231,18 @@
     }
 
     async function cargarAlumnos() {
+      const ruta = "/getStudent12";
       try {
-        const res = await fetch(`${API_BASE}/getStudent12`);
+        const res = await fetch(`${API_BASE}${ruta}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         alumnosCache = await res.json();
+        setEstadoApi(true);
+        actualizarJson("GET", ruta, res.status, alumnosCache);
         filtrarLocal();
       } catch (err) {
+        setEstadoApi(false);
+        actualizarJson("GET", ruta, "ERR", { error: err.message });
+        document.getElementById("totalBadge").textContent = "0";
         document.getElementById("studentsBody").innerHTML = `
           <tr><td colspan="5" class="text-center py-4 text-danger">
             No se pudo consultar la API (${err.message}). Verificá que <code>evitest-app</code> esté corriendo en el puerto 4455.
@@ -200,7 +269,10 @@
 
     function renderTabla(lista) {
       const tbody = document.getElementById("studentsBody");
-      if (!Array.isArray(lista) || lista.length === 0) {
+      const total = Array.isArray(lista) ? lista.length : 0;
+      document.getElementById("totalBadge").textContent = String(total);
+
+      if (total === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No hay alumnos para mostrar.</td></tr>`;
         return;
       }
@@ -255,21 +327,31 @@
 
       try {
         let res;
+        let ruta;
+        let metodo;
         if (sid) {
-          res = await fetch(`${API_BASE}/patchStudent/${sid}`, {
+          metodo = "PATCH";
+          ruta = `/patchStudent/${sid}`;
+          res = await fetch(`${API_BASE}${ruta}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
           });
         } else {
-          res = await fetch(`${API_BASE}/insertStudent12`, {
+          metodo = "POST";
+          ruta = "/insertStudent12";
+          res = await fetch(`${API_BASE}${ruta}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
           });
         }
 
+        const data = await res.json().catch(() => ({}));
+        setEstadoApi(true);
+        actualizarJson(metodo, ruta, res.status, data);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
         mostrarAlerta(sid ? `Alumno #${sid} actualizado correctamente.` : "Alumno creado correctamente.", "success");
         resetFormulario();
         await cargarAlumnos();
@@ -280,14 +362,48 @@
 
     async function eliminarAlumno(sid) {
       if (!confirm(`¿Seguro que querés eliminar al alumno #${sid}?`)) return;
+      const ruta = `/deleteStudent12/${sid}`;
       try {
-        const res = await fetch(`${API_BASE}/deleteStudent12/${sid}`, { method: "DELETE" });
+        const res = await fetch(`${API_BASE}${ruta}`, { method: "DELETE" });
+        const data = await res.json().catch(() => ({ deletedSid: sid }));
+        setEstadoApi(true);
+        actualizarJson("DELETE", ruta, res.status, data);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
         mostrarAlerta(`Alumno #${sid} eliminado.`, "warning");
         await cargarAlumnos();
       } catch (err) {
         mostrarAlerta(`Error al eliminar: ${err.message}`, "danger");
       }
+    }
+
+    function exportarCsv() {
+      if (!alumnosCache.length) return;
+      const headers = ["SID", "Nombre", "Legajo", "Contacto"];
+      const rows = alumnosCache.map(s => [
+        s.sid ?? "",
+        `"${String(s.name ?? "").replace(/"/g, '""')}"`,
+        s.regdno ?? "",
+        s.contact ?? ""
+      ]);
+      const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "alumnos_tp_evi.csv";
+      link.click();
+    }
+
+    async function copiarJson() {
+      await navigator.clipboard.writeText(ultimoJson);
+      mostrarAlerta("JSON copiado al portapapeles.", "info");
+    }
+
+    function toggleJson() {
+      const body = document.getElementById("jsonPanelBody");
+      const btn = document.getElementById("btnToggleJson");
+      const oculto = body.classList.toggle("d-none");
+      btn.textContent = oculto ? "Mostrar" : "Ocultar";
     }
 
     function escapeHtml(str) {
